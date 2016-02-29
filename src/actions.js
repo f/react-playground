@@ -1,13 +1,6 @@
-export function setBaseComponents(components) {
+export function setComponents(components) {
   return {
-    type: 'setBaseComponents',
-    data: components
-  }
-}
-
-export function setDerivedComponents(components) {
-  return {
-    type: 'setDerivedComponents',
+    type: 'setComponents',
     data: components
   }
 }
@@ -18,3 +11,15 @@ export function setCode(code) {
     data: code
   }
 }
+
+export function addComponent(name, parent = "Component") {
+  return {
+    type: 'addComponent',
+    data: {
+      name,
+      parent
+    }
+  }
+}
+
+window.addComponent = addComponent

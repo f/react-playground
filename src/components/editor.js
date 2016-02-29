@@ -2,41 +2,37 @@ import React from 'react'
 import CodeMirror from 'react-codemirror'
 import 'codemirror/mode/javascript/javascript'
 
-import {setBaseComponents, setDerivedComponents, setCode} from '../actions'
+import {setComponents, setCode} from '../actions'
 
 export default class Editor extends React.Component {
 
   findComponents(code) {
-
-    if (this.props.state.code === code) {
-      return
-    }
-
-    var derivedComponents = []
-    var baseComponents = code.match(/class\s+(\w+)\s+extends(?:React\.|.*)Component/g) || []
-    if (baseComponents.length) {
-      baseComponents = baseComponents.map(component => {
-        let name = component.match(/class\s+(\w+)/)[1]
-        return {name}
+    var components = []
+    var components = code.match(/class\s+([\w\d\._$]+)\s+extends(?:React\.|.*)Component\s+\{/mg) || []
+    if (components.length) {
+      components = components.map(component => {
+        let name = component.match(/class\s+([\w\d\._$]+)/)[1]
+        return {name, parent: null}
       })
-      var reDerivedComponents = new RegExp(`class\\s+(\\w+)\\s+extends\\s+((${baseComponents.map(bc=>bc.name).join('|')}))`, 'g')
-      var derivedComponents = code.match(reDerivedComponents)
-      if (derivedComponents) {
-        derivedComponents = derivedComponents.map(component => {
-          let [, name, parent] = component.match(/class\s+(\w+)\s+extends\s+(\w+)/)
+      var subComponentsRE = new RegExp(`class\\s+([\\w\\d\\._$]+)\\s+extends\\s+([\\w\\d\\._$]+)\\s+\\{`, 'mg')
+      var subComponents = code.match(subComponentsRE)
+      console.log(subComponents, subComponentsRE)
+      if (subComponents) {
+        components = components.concat(subComponents.map(component => {
+          let [, name, parent] = component.match(/class\s+([\w\d\._$]+)\s+extends\s+([\w\d\._$]+)/)
           return {name, parent}
-        })
+        }))
       }
     }
 
-    this.props.dispatch(setCode(code))
-
-    if (baseComponents.length !== this.props.state.baseComponents.length) {
-      this.props.dispatch(setBaseComponents(baseComponents))
+    if (this.props.state.code !== code) {
+      this.props.dispatch(setCode(code))
     }
 
-    if (derivedComponents.length !== this.props.state.derivedComponents.length) {
-      this.props.dispatch(setDerivedComponents(derivedComponents))
+    let serialize = (list) => (list || []).map(item=>item.name).join()
+
+    if (serialize(components) !== serialize(this.props.state.components)) {
+      this.props.dispatch(setComponents(components))
     }
   }
 

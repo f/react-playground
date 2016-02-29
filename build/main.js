@@ -30063,19 +30063,12 @@ function warning(message) {
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.setBaseComponents = setBaseComponents;
-exports.setDerivedComponents = setDerivedComponents;
+exports.setComponents = setComponents;
 exports.setCode = setCode;
-function setBaseComponents(components) {
+exports.addComponent = addComponent;
+function setComponents(components) {
   return {
-    type: 'setBaseComponents',
-    data: components
-  };
-}
-
-function setDerivedComponents(components) {
-  return {
-    type: 'setDerivedComponents',
+    type: 'setComponents',
     data: components
   };
 }
@@ -30086,6 +30079,20 @@ function setCode(code) {
     data: code
   };
 }
+
+function addComponent(name) {
+  var parent = arguments.length <= 1 || arguments[1] === undefined ? "Component" : arguments[1];
+
+  return {
+    type: 'addComponent',
+    data: {
+      name: name,
+      parent: parent
+    }
+  };
+}
+
+window.addComponent = addComponent;
 
 },{}],182:[function(require,module,exports){
 'use strict';
@@ -30143,7 +30150,98 @@ var Application = function (_React$Component) {
 
 exports.default = Application;
 
-},{"../store":186,"./playground":184,"react":173,"react-redux":41}],183:[function(require,module,exports){
+},{"../store":187,"./playground":185,"react":173,"react-redux":41}],183:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+var Components = function (_React$Component) {
+  _inherits(Components, _React$Component);
+
+  function Components() {
+    _classCallCheck(this, Components);
+
+    return _possibleConstructorReturn(this, Object.getPrototypeOf(Components).apply(this, arguments));
+  }
+
+  _createClass(Components, [{
+    key: 'renderSubComponents',
+    value: function renderSubComponents(parentComp) {
+      var _this2 = this;
+
+      var subComponents = this.props.state.components.filter(function (comp) {
+        return parentComp.name === comp.parent;
+      });
+      if (subComponents.length > 0) {
+        return _react2.default.createElement(
+          'ul',
+          null,
+          subComponents.map(function (comp, i) {
+            return _react2.default.createElement(
+              'li',
+              { key: comp.parent + '_' + comp.name + '_' + i },
+              comp.name,
+              _this2.renderSubComponents(comp)
+            );
+          })
+        );
+      }
+    }
+  }, {
+    key: 'renderComponents',
+    value: function renderComponents() {
+      var _this3 = this;
+
+      var components = this.props.state.components.filter(function (comp) {
+        return !comp.parent;
+      }).map(function (comp, i) {
+        return _react2.default.createElement(
+          'li',
+          { key: i },
+          comp.name,
+          _this3.renderSubComponents(comp)
+        );
+      });
+
+      return _react2.default.createElement(
+        'ul',
+        null,
+        components
+      );
+    }
+  }, {
+    key: 'render',
+    value: function render() {
+      return _react2.default.createElement(
+        'div',
+        null,
+        this.renderComponents()
+      );
+    }
+  }]);
+
+  return Components;
+}(_react2.default.Component);
+
+exports.default = Components;
+
+},{"react":173}],184:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -30186,25 +30284,19 @@ var Editor = function (_React$Component) {
   _createClass(Editor, [{
     key: 'findComponents',
     value: function findComponents(code) {
-
-      if (this.props.state.code === code) {
-        return;
-      }
-
-      var derivedComponents = [];
-      var baseComponents = code.match(/class\s+(\w+)\s+extends(?:React\.|.*)Component/g) || [];
-      if (baseComponents.length) {
-        baseComponents = baseComponents.map(function (component) {
-          var name = component.match(/class\s+(\w+)/)[1];
-          return { name: name };
+      var components = [];
+      var components = code.match(/class\s+([\w\d\._$]+)\s+extends(?:React\.|.*)Component\s+\{/mg) || [];
+      if (components.length) {
+        components = components.map(function (component) {
+          var name = component.match(/class\s+([\w\d\._$]+)/)[1];
+          return { name: name, parent: null };
         });
-        var reDerivedComponents = new RegExp('class\\s+(\\w+)\\s+extends\\s+((' + baseComponents.map(function (bc) {
-          return bc.name;
-        }).join('|') + '))', 'g');
-        var derivedComponents = code.match(reDerivedComponents);
-        if (derivedComponents) {
-          derivedComponents = derivedComponents.map(function (component) {
-            var _component$match = component.match(/class\s+(\w+)\s+extends\s+(\w+)/);
+        var subComponentsRE = new RegExp('class\\s+([\\w\\d\\._$]+)\\s+extends\\s+([\\w\\d\\._$]+)\\s+\\{', 'mg');
+        var subComponents = code.match(subComponentsRE);
+        console.log(subComponents, subComponentsRE);
+        if (subComponents) {
+          components = components.concat(subComponents.map(function (component) {
+            var _component$match = component.match(/class\s+([\w\d\._$]+)\s+extends\s+([\w\d\._$]+)/);
 
             var _component$match2 = _slicedToArray(_component$match, 3);
 
@@ -30212,18 +30304,22 @@ var Editor = function (_React$Component) {
             var parent = _component$match2[2];
 
             return { name: name, parent: parent };
-          });
+          }));
         }
       }
 
-      this.props.dispatch((0, _actions.setCode)(code));
-
-      if (baseComponents.length !== this.props.state.baseComponents.length) {
-        this.props.dispatch((0, _actions.setBaseComponents)(baseComponents));
+      if (this.props.state.code !== code) {
+        this.props.dispatch((0, _actions.setCode)(code));
       }
 
-      if (derivedComponents.length !== this.props.state.derivedComponents.length) {
-        this.props.dispatch((0, _actions.setDerivedComponents)(derivedComponents));
+      var serialize = function serialize(list) {
+        return (list || []).map(function (item) {
+          return item.name;
+        }).join();
+      };
+
+      if (serialize(components) !== serialize(this.props.state.components)) {
+        this.props.dispatch((0, _actions.setComponents)(components));
       }
     }
   }, {
@@ -30252,7 +30348,7 @@ var Editor = function (_React$Component) {
 
 exports.default = Editor;
 
-},{"../actions":181,"codemirror/mode/javascript/javascript":3,"react":173,"react-codemirror":37}],184:[function(require,module,exports){
+},{"../actions":181,"codemirror/mode/javascript/javascript":3,"react":173,"react-codemirror":37}],185:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -30270,6 +30366,10 @@ var _reactRedux = require('react-redux');
 var _editor = require('./editor');
 
 var _editor2 = _interopRequireDefault(_editor);
+
+var _components = require('./components');
+
+var _components2 = _interopRequireDefault(_components);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -30294,7 +30394,8 @@ var Playground = function (_React$Component) {
       return _react2.default.createElement(
         'div',
         null,
-        _react2.default.createElement(_editor2.default, this.props)
+        _react2.default.createElement(_editor2.default, this.props),
+        _react2.default.createElement(_components2.default, this.props)
       );
     }
   }]);
@@ -30306,7 +30407,7 @@ exports.default = (0, _reactRedux.connect)(function (state) {
   return { state: state };
 })(Playground);
 
-},{"./editor":183,"react":173,"react-redux":41}],185:[function(require,module,exports){
+},{"./components":183,"./editor":184,"react":173,"react-redux":41}],186:[function(require,module,exports){
 'use strict';
 
 var _react = require('react');
@@ -30323,7 +30424,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 (0, _reactDom.render)(_react2.default.createElement(_application2.default, null), document.querySelector('main'));
 
-},{"./components/application":182,"react":173,"react-dom":38}],186:[function(require,module,exports){
+},{"./components/application":182,"react":173,"react-dom":38}],187:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -30332,26 +30433,16 @@ Object.defineProperty(exports, "__esModule", {
 
 var _redux = require('redux');
 
-function baseComponents() {
+function components() {
   var state = arguments.length <= 0 || arguments[0] === undefined ? [] : arguments[0];
   var action = arguments[1];
 
   switch (action.type) {
-    case 'setBaseComponents':
+    case 'setComponents':
       state = action.data;
       break;
-  }
-  return state;
-}
-
-function derivedComponents() {
-  var state = arguments.length <= 0 || arguments[0] === undefined ? [] : arguments[0];
-  var action = arguments[1];
-
-  switch (action.type) {
-    case 'setDerivedComponents':
-      state = action.data;
-      break;
+    case 'addComponent':
+      state = state.concat(action.data);
   }
   return state;
 }
@@ -30364,18 +30455,24 @@ function code() {
     case 'setCode':
       state = action.data;
       break;
+    case 'addComponent':
+      state += '\n\nclass ' + action.data.name + ' extends ' + action.data.parent + ' {\n  render() {\n    return <div></div>\n  }\n}';
+      break;
   }
-  return state;
+  return state.trim();
 }
 
 var createStoreWithMiddlewares = (0, _redux.compose)(window.devToolsExtension ? window.devToolsExtension() : function (f) {
   return f;
 })(_redux.createStore);
 
-exports.default = createStoreWithMiddlewares((0, _redux.combineReducers)({
+var STORE = createStoreWithMiddlewares((0, _redux.combineReducers)({
   code: code,
-  baseComponents: baseComponents,
-  derivedComponents: derivedComponents
+  components: components
 }));
 
-},{"redux":179}]},{},[185]);
+window.store = STORE;
+
+exports.default = STORE;
+
+},{"redux":179}]},{},[186]);

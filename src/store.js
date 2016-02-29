@@ -1,19 +1,12 @@
 import {compose, createStore, combineReducers} from 'redux'
 
-function baseComponents(state = [], action) {
+function components(state = [], action) {
   switch (action.type) {
-    case 'setBaseComponents':
+    case 'setComponents':
       state = action.data
       break
-  }
-  return state
-}
-
-function derivedComponents(state = [], action) {
-  switch (action.type) {
-    case 'setDerivedComponents':
-      state = action.data
-      break
+    case 'addComponent':
+      state = state.concat(action.data)
   }
   return state
 }
@@ -23,16 +16,28 @@ function code(state = "", action) {
     case 'setCode':
       state = action.data
       break
+    case 'addComponent':
+      state += `
+
+class ${action.data.name} extends ${action.data.parent} {
+  render() {
+    return <div></div>
   }
-  return state
+}`
+      break
+  }
+  return state.trim()
 }
 
 let createStoreWithMiddlewares = compose(
   window.devToolsExtension ? window.devToolsExtension() : f => f
 )(createStore)
 
-export default createStoreWithMiddlewares(combineReducers({
+const STORE = createStoreWithMiddlewares(combineReducers({
   code,
-  baseComponents,
-  derivedComponents
+  components,
 }))
+
+window.store = STORE
+
+export default STORE
